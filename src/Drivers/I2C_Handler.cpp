@@ -10,12 +10,12 @@
 #include "../Config/hw_config.h"
 #include "../Network/ETH_Connector.h"
 
-void I2C_Handler::initI2C() {
+void I2C_Handler::initI2C(bool scanAndWaitForDevices) {
     bool i2cInitState = Wire1.begin(hw_config::I2C_SDA_Pin, hw_config::I2C_SCL_Pin, hw_config::I2C_Speed);
     if (i2cInitState) {
         Log.infoln("I2C Initialized on SDA: %d, SCL %d, @Speed: %d", hw_config::I2C_SDA_Pin,
                    hw_config::I2C_SCL_Pin, hw_config::I2C_Speed);
-        while (0 == scanForI2CDevices(&Wire1)) {
+        while (scanAndWaitForDevices && 0 == scanForI2CDevices(&Wire1)) {
             sleep(2); // Wait for 2 seconds before scanning again
         }
     } else {

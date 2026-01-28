@@ -35,7 +35,7 @@ void setup() {
 
     ETH_Connector::InitEth();
 
-    I2C_Handler::initI2C();
+    I2C_Handler::initI2C(false);
 
     artnetRecv.begin();
     Log.infoln("Art-Net Receiver Initialized");
@@ -67,6 +67,16 @@ void loop() {
     artnetRecv.parse(); // Continuously parse incoming Art-Net packets
 }
 
+void printDMXData(const uint8_t *data, uint16_t size) {
+    Log.verboseln("DMX Data: |");
+    for (uint16_t i = 0; i < size; ++i) {
+        Log.verbose("%d", data[i]);
+        if (i < size - 1) {
+            Log.verbose("|");
+        }
+    }
+    Log.verboseln("|");
+}
 
 void artnetReceiveCallback(const uint8_t *data, uint16_t size,
                            const ArtDmxMetadata &metadata,
@@ -78,9 +88,12 @@ void artnetReceiveCallback(const uint8_t *data, uint16_t size,
         // DMX addresses are 1-based, so we add 1 to the fixture's address
         int count = worker->_fixture.channelCount;
         if (startIndex >= 0 && (startIndex + count) < size) {
+            // printDMXData(&data[startIndex], worker->_fixture.channelCount);
             worker->SendValues(&(data[startIndex]), worker->_fixture.channelCount);
         } else {
             Log.errorln("Error DMX Addr Values. Bounds not correct");
         }
     }
 }
+
+

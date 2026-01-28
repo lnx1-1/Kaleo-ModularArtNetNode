@@ -9,7 +9,7 @@
 
 class I2C_Handler {
 public:
-    static void initI2C();
+    static void initI2C(bool scanAndWaitForDevices = true);
 
     static int scanForI2CDevices(TwoWire *wire);
 
