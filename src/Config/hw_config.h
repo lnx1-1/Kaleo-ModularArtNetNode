@@ -7,7 +7,7 @@
 enum class FixtureID {
     LaserModule,
     MovementModule,
-    LightModule, Dummy, RelaisModule
+    LightModule, Dummy, RelaisModule, StepperModule
 };
 
 struct Fixture {
@@ -28,6 +28,8 @@ struct Fixture {
                 return "DummyModule";
             case FixtureID::RelaisModule:
                 return "RelaisModule";
+            case FixtureID::StepperModule:
+                return "StepperModule";
             default:
                 return "Unknown";
         }
@@ -50,14 +52,15 @@ inline std::list<Fixture> getFixtures() {
     auto laserModule = Fixture{FixtureID::LaserModule, 1, 1, 0x40};
     auto movementModule = Fixture{FixtureID::MovementModule, 8, 0x9, 0x21};
     auto lightModule = Fixture{FixtureID::LightModule, 8, 0x19, 0x22};
+    auto StepperModule = Fixture{FixtureID::StepperModule, 8, 0x19, 0x22};
 
     // fixtures.push_back(laserModule);
     // fixtures.push_back(movementModule);
     // fixtures.push_back(lightModule);
     // fixtures.push_back(RelaisFixture);
     // fixtures.push_back(dummyFixture);
-    fixtures.push_back(Fixture{FixtureID::RelaisModule, 3, 1, 0x20}); // Dummy fixture for testing)
-    fixtures.push_back(Fixture{FixtureID::MovementModule, 3, 0x4, 0x40});
+    // fixtures.push_back(Fixture{FixtureID::RelaisModule, 3, 1, 0x20});
+    fixtures.push_back(Fixture{FixtureID::StepperModule, 2, 0x1, 0x0});
     return fixtures;
 }
 
