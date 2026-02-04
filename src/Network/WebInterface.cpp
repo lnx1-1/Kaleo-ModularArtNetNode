@@ -188,13 +188,25 @@ String WebInterface::getHtml() {
             for (auto const &s: settings) {
                 String inputName = "fix_" + String(worker->_fixture.toString()) + "_" +
                                    String(worker->_fixture.i2cAddress) + "_" + s.key;
-                html += "<tr><td>" + s.label + "</td><td><input type='" + s.type + "' name='" + inputName + "' value='"
-                        + s.value + "'></td></tr>";
+                html += "<tr><td>" + s.label + "</td><td>";
+                if (s.type == "select") {
+                    html += "<select name='" + inputName + "'>";
+                    for (const auto &opt: s.options) {
+                        html += "<option value='" + opt + "'" + (s.value == opt ? " selected" : "") + ">" + opt +
+                                "</option>";
+                    }
+                    html += "</select>";
+                } else {
+                    html += "<input type='" + s.type + "' name='" + inputName + "' value='" + s.value + "'>";
+                }
+                html += "</td></tr>";
             }
             html += "</table>";
         }
     }
 
+    html +=
+            "<p style='color: #666; font-size: 0.9em;'><i>Note: Changing hardware-related settings (Pin, LED Count, Color Order) may require a reboot or cause temporary flickering.</i></p>";
     html += "<button type='submit'>Save All Settings</button>";
     html += "</form>";
 

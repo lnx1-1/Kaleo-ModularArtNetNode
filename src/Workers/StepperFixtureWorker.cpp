@@ -38,12 +38,12 @@ void StepperFixtureWorker::tick() {
 void StepperFixtureWorker::SendValues(const uint8_t *data, size_t size) {
     if (checkParamsValid(data, &size) && stateValid()) {
         if (size >= 2) {
-            float speedFactor = static_cast<float>(_settings.maxSpeed) / 255.0;
-            float scaledSpeed = speedFactor * data[0];
+            const float speedFactor = static_cast<float>(_settings.maxSpeed) / 255.0;
+            const float scaledSpeed = speedFactor * data[0];
 
             if (data[0] == 0) {
                 _stepper->stopMove();
-                Log.verboseln("Zero Speed - Stopping");
+                Log.traceln("Zero Speed - Stopping");
             } else {
                 auto delayInUs = static_cast<uint32_t>(1000000.0f / scaledSpeed);
                 _stepper->setSpeedInUs(delayInUs);

@@ -61,6 +61,7 @@ inline std::list<Fixture> getFixtures() {
     // fixtures.push_back(dummyFixture);
     // fixtures.push_back(Fixture{FixtureID::RelaisModule, 3, 1, 0x20});
     fixtures.push_back(Fixture{FixtureID::StepperModule, 2, 0x1, 0x0});
+    fixtures.push_back(Fixture{FixtureID::LightModule, 180, 0x10, 0x0});
     return fixtures;
 }
 
