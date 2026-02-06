@@ -38,6 +38,8 @@ struct Fixture {
 
 class hw_config {
 public:
+    // Disable I2C while Stepper Enable uses GPIO17. Re-enable and change pins when I2C is needed.
+    static constexpr bool I2C_Enable = false;
     static constexpr uint8_t I2C_SDA_Pin = 5; //32; //CFG Gelabelt auf ETH01
     static constexpr uint8_t I2C_SCL_Pin = 17; //33; //485_EN Gelabeld auf ETH01
     static constexpr uint I2C_Speed = 100000; // 100 kHz Slowest but most compatible speed

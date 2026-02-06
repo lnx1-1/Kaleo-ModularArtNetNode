@@ -75,7 +75,11 @@ void setup() {
     WebInterface::init();
     CaptivePortal::begin(Config::CaptiveGraceMs, Config::CaptiveDurationMs);
 
-    I2C_Handler::initI2C(false);
+    if (hw_config::I2C_Enable) {
+        I2C_Handler::initI2C(false);
+    } else {
+        Log.infoln("[I2C] Disabled in hw_config (enable and adjust pins when needed).");
+    }
 
     DmxInput::init();
     DmxInput::setEnabled(Config::InputMode == ConfigDefaults::InputMode::DMX);
