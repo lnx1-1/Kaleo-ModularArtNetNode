@@ -8,6 +8,23 @@
 
 ## Features & Improvements
 
+- [ ] **DHCP & Network Fallback**:
+    - [ ] Add `use_dhcp` setting in `Config`.
+    - [ ] Implement detection of invalid static IP (e.g., gateway not reachable).
+    - [ ] Logic: Static IP -> Fallback to DHCP -> Fallback to WiFi Access Point.
+- [ ] **WiFi Captive Portal**:
+    - [ ] Implement WiFi AP mode if Ethernet fails.
+    - [ ] Integrate a DNS server to redirect all requests to the configuration page.
+    - [ ] Add timeout for AP mode (auto-off after X minutes).
+    - [ ] Simplify `CaptivePortal.html` or adapt current `WebInterface` for mobile-friendly setup.
+- [ ] **DMX Fallback**:
+    - [ ] Configurable timeout (ms).
+    - [ ] Fallback mode: blackout or hold last.
+- [ ] **DMX Driver Mode Switching**:
+    - [ ] Cleanly enable/disable DMX driver when switching input modes.
+- [ ] **OTA Updates (Over-The-Air)**:
+    - [ ] Implement Web-based OTA (Upload `.bin` via browser).
+    - [ ] (Optional) Add `ArduinoOTA` for developer convenience.
 - [ ] **Gamma Correction**: Implement Gamma Correction for LEDs to improve color perception (linear DMX to non-linear
   brightness).
     - *Reference*: Check [WLED implementation](https://github.com/wled/WLED) for efficient lookup tables.
