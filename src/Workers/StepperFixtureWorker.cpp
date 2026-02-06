@@ -41,21 +41,28 @@ void StepperFixtureWorker::SendValues(const uint8_t *data, size_t size) {
             const float speedFactor = static_cast<float>(_settings.maxSpeed) / 255.0;
             const float scaledSpeed = speedFactor * data[0];
 
-            if (data[0] == 0) {
+            auto DMX_SpeedVal = data[0];
+            auto DMX_DirVal = data[1];
+
+            if (_last_DMXSpeedVal == DMX_SpeedVal) return;
+
+
+            if (DMX_SpeedVal == 0) {
                 _stepper->stopMove();
                 Log.traceln("Zero Speed - Stopping");
             } else {
                 auto delayInUs = static_cast<uint32_t>(1000000.0f / scaledSpeed);
                 _stepper->setSpeedInUs(delayInUs);
 
-                if (data[1] >= 128) {
-                    Log.verboseln("Mov Right Speed [%F]", scaledSpeed);
+                if (DMX_DirVal >= 128) {
+                    Log.traceln("Mov Right Speed [%F]", scaledSpeed);
                     _stepper->runForward();
                 } else {
-                    Log.verboseln("Mov Left Speed [%F]", scaledSpeed);
+                    Log.traceln("Mov Left Speed [%F]", scaledSpeed);
                     _stepper->runBackward();
                 }
             }
+            _last_DMXSpeedVal = DMX_SpeedVal;
         }
     }
 }
