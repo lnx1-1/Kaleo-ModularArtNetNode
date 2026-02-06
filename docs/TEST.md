@@ -4,7 +4,7 @@ Diese Checkliste ist kurz und praxisnah. Ziel ist: stabile Ethernet/DMX Funktion
 
 ## 1. Boot ohne Ethernet
 - [ ] Gerät ohne Ethernet starten.
-- [ ] Nach ~10s erscheint AP `SYNAPSE-LNX-Setup-XXXXXX`.
+- [ ] Nach ~10s erscheint AP `Kaleo-Setup-XXXXXX`.
 - [ ] Verbindung möglich, Captive-Portal Seite lädt.
 - [ ] AP schaltet sich nach der eingestellten Dauer (Default 180s) aus.
 
@@ -41,3 +41,12 @@ Diese Checkliste ist kurz und praxisnah. Ziel ist: stabile Ethernet/DMX Funktion
 
 Optional:
 - [ ] /dmx Seite geöffnet -> weiterhin stabil.
+
+## Extended Tests (Stabilität)
+- [ ] Soak-Test: 2-4h DMX-Betrieb, keine Aussetzer oder Reboots.
+- [ ] DMX-Stress: 512 Kanäle @ 44 Hz, keine Stotterer.
+- [ ] Mode-Switch Belastung: mehrfach ArtNet ↔ DMX, keine Hänger.
+- [ ] Power-Cycle: mehrere schnelle Neustarts, ETH init + Portal Verhalten ok.
+- [ ] Falsche Netz-Config: Gateway/IP absichtlich falsch, Portal startet.
+- [ ] Portal Timeout: AP läuft ab und geht sauber aus.
+- [ ] Reiner DMX-Betrieb ohne Ethernet: keine unerwünschten Nebeneffekte.
