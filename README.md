@@ -11,6 +11,15 @@ Modular ArtNet firmware framework for ESP32 with flexible fixture modules - RGB,
 
 - DMX wiring, pass-through, and direction control: `docs/DMX.md`
 
+## Quickstart (Synapse)
+
+1. Power the node and connect Ethernet if available.
+2. If Ethernet is not connected, the setup hotspot starts after the captive grace time (default: `10` seconds).
+3. Join the hotspot SSID `SYNAPSE-LNX-Setup-XXXXXX` (`XXXXXX` = last 6 MAC chars) with default password `connectchaos`.
+4. Open `http://2.0.0.1/` and configure IP, input source, and captive settings.
+5. Captive duration controls how long the hotspot stays open (default: `180` seconds). The portal also closes as soon as Ethernet connects. Set duration to `0` to keep it open until Ethernet connects.
+6. For firmware upgrades, open the web UI and use **Firmware Update** to upload a new `.bin` image. The node reboots automatically after a successful flash.
+
 ## Build Environments
 
 - Fast/default build: `pio run -e wt32-eth01`

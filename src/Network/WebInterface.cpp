@@ -2,10 +2,45 @@
 #include <ArduinoLog.h>
 #include "Drivers/DmxInput.h"
 #include <WiFi.h>
+#include <Update.h>
 #include <list>
+
+#ifndef SYNAPSE_FW_VERSION
+#define SYNAPSE_FW_VERSION "dev"
+#endif
 
 extern std::list<Idmx_FixtureWorker *> dmxFixtures;
 extern unsigned long lastArtnetPacketTime;
+
+namespace {
+    constexpr uint32_t kMillisPerSecond = 1000UL;
+    constexpr uint32_t kMaxSecondsForMillis = 4294967UL; // floor(UINT32_MAX / 1000)
+    bool firmwareUploadStarted = false;
+    bool firmwareUploadSuccessful = false;
+
+    uint32_t millisToSeconds(uint32_t millisValue) {
+        return millisValue / kMillisPerSecond;
+    }
+
+    uint32_t parseSecondsToMillis(const String &value) {
+        const long seconds = value.toInt();
+        if (seconds <= 0) {
+            return 0;
+        }
+        if (static_cast<uint32_t>(seconds) > kMaxSecondsForMillis) {
+            return ~static_cast<uint32_t>(0);
+        }
+        return static_cast<uint32_t>(seconds) * kMillisPerSecond;
+    }
+
+    uint32_t parseNonNegativeMillis(const String &value) {
+        const long millisValue = value.toInt();
+        if (millisValue <= 0) {
+            return 0;
+        }
+        return static_cast<uint32_t>(millisValue);
+    }
+}
 
 // Re-init functions defined in main.cpp or similar
 extern void reinitModules();
@@ -39,6 +74,7 @@ void WebLog::clear() {
 void WebInterface::init() {
     server.on("/", handleRoot);
     server.on("/save", HTTP_POST, handleSave);
+    server.on("/update", HTTP_POST, handleFirmwareUpdate, handleFirmwareUpload);
     server.on("/toggleLog", HTTP_POST, handleToggleLog);
     server.on("/getLogs", HTTP_GET, handleGetLogs);
     server.on("/status", HTTP_GET, handleStatus);
@@ -86,8 +122,16 @@ void WebInterface::handleSave() {
         Config::InputMode = static_cast<ConfigDefaults::InputMode>(server.arg("input_mode").toInt());
     }
     if (server.hasArg("cap_enabled")) Config::CaptiveEnabled = server.arg("cap_enabled") == "1";
-    if (server.hasArg("cap_grace_ms")) Config::CaptiveGraceMs = server.arg("cap_grace_ms").toInt();
-    if (server.hasArg("cap_duration_ms")) Config::CaptiveDurationMs = server.arg("cap_duration_ms").toInt();
+    if (server.hasArg("cap_grace_s")) {
+        Config::CaptiveGraceMs = parseSecondsToMillis(server.arg("cap_grace_s"));
+    } else if (server.hasArg("cap_grace_ms")) {
+        Config::CaptiveGraceMs = parseNonNegativeMillis(server.arg("cap_grace_ms"));
+    }
+    if (server.hasArg("cap_duration_s")) {
+        Config::CaptiveDurationMs = parseSecondsToMillis(server.arg("cap_duration_s"));
+    } else if (server.hasArg("cap_duration_ms")) {
+        Config::CaptiveDurationMs = parseNonNegativeMillis(server.arg("cap_duration_ms"));
+    }
     if (server.hasArg("cap_ssid")) Config::CaptiveSsid = server.arg("cap_ssid");
     if (server.hasArg("cap_pass")) Config::CaptivePass = server.arg("cap_pass");
 
@@ -193,6 +237,74 @@ void WebInterface::handleDmxStatus() {
     server.send(200, "text/html", html);
 }
 
+void WebInterface::handleFirmwareUpdate() {
+    if (!firmwareUploadStarted) {
+        server.send(400, "text/html",
+                    "<html><head><meta http-equiv='refresh' content='8;url=/'></head><body><h1>No firmware selected.</h1><p>Select a valid .bin file and upload again.</p><a href='/'>Back</a></body></html>");
+        Log.warningln("[FW] Update request without uploaded file");
+        return;
+    }
+
+    if (Update.hasError() || !firmwareUploadSuccessful) {
+        firmwareUploadStarted = false;
+        firmwareUploadSuccessful = false;
+        server.send(500, "text/html",
+                    "<html><head><meta http-equiv='refresh' content='8;url=/'></head><body><h1>Firmware update failed.</h1><p>Check logs and retry with a valid .bin firmware file.</p><a href='/'>Back</a></body></html>");
+        Log.errorln("[FW] Firmware update failed");
+        return;
+    }
+
+    firmwareUploadStarted = false;
+    firmwareUploadSuccessful = false;
+    server.send(200, "text/html",
+                "<html><head><meta http-equiv='refresh' content='8;url=/'></head><body><h1>Firmware update successful.</h1><p>Synapse is restarting now.</p></body></html>");
+    Log.infoln("[FW] Firmware update successful. Restarting.");
+    delay(250);
+    ESP.restart();
+}
+
+void WebInterface::handleFirmwareUpload() {
+    HTTPUpload &upload = server.upload();
+    switch (upload.status) {
+        case UPLOAD_FILE_START:
+            firmwareUploadStarted = true;
+            firmwareUploadSuccessful = false;
+            Update.clearError();
+            Log.infoln("[FW] Upload start: %s", upload.filename.c_str());
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+                Update.printError(Serial);
+                Log.errorln("[FW] Update.begin failed");
+            }
+            break;
+
+        case UPLOAD_FILE_WRITE:
+            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                Update.printError(Serial);
+                Log.errorln("[FW] Update.write failed");
+            }
+            break;
+
+        case UPLOAD_FILE_END:
+            if (Update.end(true)) {
+                firmwareUploadSuccessful = true;
+                Log.infoln("[FW] Upload complete: %u bytes", upload.totalSize);
+            } else {
+                Update.printError(Serial);
+                Log.errorln("[FW] Update.end failed");
+            }
+            break;
+
+        case UPLOAD_FILE_ABORTED:
+            firmwareUploadSuccessful = false;
+            Update.abort();
+            Log.warningln("[FW] Upload aborted");
+            break;
+
+        default:
+            break;
+    }
+}
+
 String WebInterface::getHtml() {
     String html = "<!DOCTYPE html><html><head><title>SYNAPSE LNX Control</title>";
     html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
@@ -268,6 +380,7 @@ String WebInterface::getHtml() {
     html += "<div class='brand'>SYNAPSE LNX</div>";
     html += "<div class='tagline'>connect the chaos</div>";
     html += "<div class='subtitle'>Modulares Art-Net/DMX Steuer- und Orchestrierungssystem</div>";
+    html += "<div class='note'>Firmware: <b>" + String(SYNAPSE_FW_VERSION) + "</b></div>";
     html += "</div>";
     html += "<div id='artnetStatus' class='status-pill'>Input: Checking...</div>";
     html += "</div>";
@@ -276,6 +389,7 @@ String WebInterface::getHtml() {
     html += "<form action='/save' method='POST'>";
     html += "<table>";
     html += "<tr><th>Setting</th><th>Value</th></tr>";
+    html += "<tr><td>Firmware Version</td><td><b>" + String(SYNAPSE_FW_VERSION) + "</b></td></tr>";
     html += "<tr><td>IP Address</td><td><input type='text' name='ip' value='" + Config::Sys_ip.toString() +
             "'></td></tr>";
     html += "<tr><td>Subnet Mask</td><td><input type='text' name='subnet' value='" + Config::Sys_subnet.toString() +
@@ -289,10 +403,10 @@ String WebInterface::getHtml() {
     html += "<tr><td colspan='2'><b>Captive Portal</b></td></tr>";
     html += "<tr><td>Enable</td><td><input type='checkbox' name='cap_enabled' value='1'" +
             String(Config::CaptiveEnabled ? " checked" : "") + "></td></tr>";
-    html += "<tr><td>Grace (ms)</td><td><input type='text' name='cap_grace_ms' value='" +
-            String(Config::CaptiveGraceMs) + "'></td></tr>";
-    html += "<tr><td>Duration (ms)</td><td><input type='text' name='cap_duration_ms' value='" +
-            String(Config::CaptiveDurationMs) + "'></td></tr>";
+    html += "<tr><td>Grace (seconds)<div class='note'>Wait time after boot before the setup hotspot starts when Ethernet is offline.</div></td><td><input type='number' min='0' name='cap_grace_s' value='" +
+            String(millisToSeconds(Config::CaptiveGraceMs)) + "'></td></tr>";
+    html += "<tr><td>Duration (seconds)<div class='note'>How long the setup hotspot stays active before stopping. Set 0 to keep it active until Ethernet connects.</div></td><td><input type='number' min='0' name='cap_duration_s' value='" +
+            String(millisToSeconds(Config::CaptiveDurationMs)) + "'></td></tr>";
     html += "<tr><td>SSID Base</td><td><input type='text' name='cap_ssid' value='" +
             Config::CaptiveSsid + "'></td></tr>";
     html += "<tr><td>Password</td><td><input type='text' name='cap_pass' value='" +
@@ -343,6 +457,16 @@ String WebInterface::getHtml() {
 
     html += "<p class='note'><i>Note: Changing hardware-related settings (Pin, LED Count, Color Order) may require a reboot or cause temporary flickering.</i></p>";
     html += "<button type='submit'>Save All Settings</button>";
+    html += "</form>";
+
+    html += "<h2>Firmware Update</h2>";
+    html += "<form action='/update' method='POST' enctype='multipart/form-data'>";
+    html += "<table>";
+    html += "<tr><th>Action</th><th>Value</th></tr>";
+    html += "<tr><td>Firmware (.bin)</td><td><input type='file' name='update' accept='.bin,application/octet-stream' required></td></tr>";
+    html += "<tr><td>Upload</td><td><button type='submit'>Upload & Update Synapse</button></td></tr>";
+    html += "</table>";
+    html += "<p class='note'>The device validates the file, flashes the new firmware, and restarts automatically.</p>";
     html += "</form>";
 
     html += "<h2>DMX Input Status</h2>";
@@ -397,6 +521,7 @@ String WebInterface::getCaptiveHtml() {
     html += "<div class='brand'>SYNAPSE LNX</div>";
     html += "<div class='tagline'>connect the chaos</div>";
     html += "<h1>Setup Portal</h1>";
+    html += "<p class='note'>Firmware: <b>" + String(SYNAPSE_FW_VERSION) + "</b></p>";
     html += "<p class='note'>Ethernet not ready. Configure network & input mode below.</p>";
     html += "<form action='/save' method='POST'>";
     html += "<label>IP Address</label><input name='ip' value='" + Config::Sys_ip.toString() + "'>";
@@ -411,11 +536,19 @@ String WebInterface::getCaptiveHtml() {
     html += String("<option value='1'") + (Config::CaptiveEnabled ? " selected" : "") + ">Yes</option>";
     html += String("<option value='0'") + (!Config::CaptiveEnabled ? " selected" : "") + ">No</option>";
     html += "</select>";
-    html += "<label>Grace (ms)</label><input name='cap_grace_ms' type='number' value='" + String(Config::CaptiveGraceMs) + "'>";
-    html += "<label>Duration (ms)</label><input name='cap_duration_ms' type='number' value='" + String(Config::CaptiveDurationMs) + "'>";
+    html += "<label>Grace (seconds)</label><input name='cap_grace_s' type='number' min='0' value='" + String(millisToSeconds(Config::CaptiveGraceMs)) + "'>";
+    html += "<p class='note'>Wait this long after boot before opening the setup hotspot if Ethernet is still offline.</p>";
+    html += "<label>Duration (seconds)</label><input name='cap_duration_s' type='number' min='0' value='" + String(millisToSeconds(Config::CaptiveDurationMs)) + "'>";
+    html += "<p class='note'>Keep the setup hotspot active for this long. Set 0 to keep it active until Ethernet connects.</p>";
     html += "<label>SSID Base</label><input name='cap_ssid' value='" + Config::CaptiveSsid + "'>";
     html += "<label>Password</label><input name='cap_pass' value='" + Config::CaptivePass + "'>";
     html += "<button type='submit'>Save & Apply</button>";
+    html += "</form>";
+    html += "<h1 style='margin-top:22px'>Firmware Update</h1>";
+    html += "<p class='note'>Upload a new Synapse firmware file (.bin). The node restarts automatically after a successful update.</p>";
+    html += "<form action='/update' method='POST' enctype='multipart/form-data'>";
+    html += "<label>Firmware (.bin)</label><input type='file' name='update' accept='.bin,application/octet-stream' required>";
+    html += "<button type='submit'>Upload & Update Synapse</button>";
     html += "</form>";
     html += "<p class='note'>After saving, the device reinitializes networking.</p>";
     html += "</div></div></body></html>";

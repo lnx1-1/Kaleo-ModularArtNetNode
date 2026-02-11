@@ -93,6 +93,16 @@ private:
     static void handleDmxStatus();
 
     /**
+     * @brief Finalizes firmware upload and restarts the device on success.
+     */
+    static void handleFirmwareUpdate();
+
+    /**
+     * @brief Streams firmware upload chunks into the ESP32 update API.
+     */
+    static void handleFirmwareUpload();
+
+    /**
      * @brief Generates the full HTML content for the web interface.
      * @return The HTML string.
      */
