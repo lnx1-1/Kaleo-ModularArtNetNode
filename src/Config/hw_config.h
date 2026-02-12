@@ -34,6 +34,10 @@ struct Fixture {
                 return "Unknown";
         }
     }
+
+    uint16_t getEndChannel() const {
+        return dmxAddress + channelCount - 1;
+    }
 };
 
 class hw_config {

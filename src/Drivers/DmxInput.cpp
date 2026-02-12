@@ -14,7 +14,7 @@
 
 namespace {
     constexpr dmx_port_t kDmxPort = DMX_NUM_1;
-    constexpr size_t kMaxFrameSize = 513;
+    constexpr size_t kMaxFrameSize = DmxInput::MaxSlotsWithStartCode;
     constexpr TickType_t kReceiveWaitTicks = DMX_TIMEOUT_TICK;
     constexpr uint32_t kReceiverTaskStackWords = 4096;
     constexpr UBaseType_t kReceiverTaskPriority = 1;
@@ -27,9 +27,9 @@ namespace {
         {1, "Default"}
     };
 
-    uint8_t lastFrame[512];
+    uint8_t lastFrame[DmxInput::MaxChannels];
     uint8_t rawFrame[kMaxFrameSize];
-    uint8_t callbackFrame[512];
+    uint8_t callbackFrame[DmxInput::MaxChannels];
     size_t lastFrameSize = 0;
     size_t receiveSlotCount = kMaxFrameSize;
     volatile bool frameReady = false;

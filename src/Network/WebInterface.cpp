@@ -191,7 +191,7 @@ void WebInterface::handleDmxStatus() {
     const bool receiving = DmxInput::isReceiving(Config::DmxBlackoutTimeoutMs);
     const unsigned long ageMs = DmxInput::lastPacketAgeMs();
 
-    uint8_t snapshot[512];
+    uint8_t snapshot[DmxInput::MaxChannels];
     size_t size = DmxInput::copyLastFrame(snapshot, sizeof(snapshot));
 
     String html = "<!DOCTYPE html><html><head><title>SYNAPSE LNX - DMX Status</title>";

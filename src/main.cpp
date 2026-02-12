@@ -24,34 +24,29 @@ unsigned long lastArtnetPacketTime = 0;
 std::list<Idmx_FixtureWorker *> dmxFixtures;
 
 namespace {
-    constexpr size_t kDmxMaxSlotsWithStartCode = 513;
-
     size_t computeRequiredDmxReceiveSlots() {
-        size_t maxChannel = 0;
-        for (Idmx_FixtureWorker *worker: dmxFixtures) {
+        uint16_t maxChannel = 0;
+        for (const Idmx_FixtureWorker *worker: dmxFixtures) {
             if (worker == nullptr) {
                 continue;
             }
-            const uint16_t address = worker->_fixture.dmxAddress;
-            const uint8_t channelCount = worker->_fixture.channelCount;
-            if (address == 0 || channelCount == 0) {
+            uint16_t endChannel = worker->_fixture.getEndChannel();
+            if (endChannel == 0 || endChannel > DmxInput::MaxChannels) {
+                Log.warningln("End channel must be between 0 and %u -> Fixture: %s",
+                              static_cast<unsigned>(DmxInput::MaxChannels),
+                              worker->_fixture.toString());
                 continue;
             }
-            const size_t endChannel = static_cast<size_t>(address) + static_cast<size_t>(channelCount) - 1U;
             maxChannel = std::max(maxChannel, endChannel);
         }
 
-        if (maxChannel == 0) {
-            return kDmxMaxSlotsWithStartCode;
-        }
-
         const size_t requiredSlots = maxChannel + 1U; // Include start code slot.
-        if (requiredSlots > kDmxMaxSlotsWithStartCode) {
-            Log.warningln("[DMX] Required slots %u exceed DMX max %u. Clamping.",
+        if (requiredSlots > DmxInput::MaxSlotsWithStartCode) {
+            Log.warningln("[DMX] Required slots %u exceed DMX Bounds %u. Clamping",
                           static_cast<unsigned>(requiredSlots),
-                          static_cast<unsigned>(kDmxMaxSlotsWithStartCode));
+                          static_cast<unsigned>(DmxInput::MaxSlotsWithStartCode));
         }
-        return requiredSlots > kDmxMaxSlotsWithStartCode ? kDmxMaxSlotsWithStartCode : requiredSlots;
+        return std::min(requiredSlots, DmxInput::MaxSlotsWithStartCode);
     }
 
     void updateDmxReceiveSlotsFromFixtures() {
@@ -184,7 +179,7 @@ void loop() {
             dmxFallbackActive = false;
         } else {
             if (!dmxFallbackActive) {
-                uint8_t blackout[512] = {};
+                uint8_t blackout[DmxInput::MaxChannels] = {};
                 processDmxData(blackout, sizeof(blackout));
                 dmxFallbackActive = true;
                 Log.warningln("[DMX] Fallback active: blackout (no data for %lums)", kDmxFallbackTimeoutMs);

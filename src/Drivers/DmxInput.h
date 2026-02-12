@@ -9,6 +9,9 @@
 
 class DmxInput {
 public:
+    static constexpr size_t MaxSlotsWithStartCode = 513;
+    static constexpr size_t MaxChannels = MaxSlotsWithStartCode - 1;
+
     using FrameCallback = void (*)(const uint8_t *data, uint16_t size);
 
     static void init();
